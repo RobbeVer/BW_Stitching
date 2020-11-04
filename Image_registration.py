@@ -18,7 +18,7 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
     if iteration == total: 
         print()
 
-Reading all the images
+# Reading all the images
 images = []
 if os.path.isdir(path_images):
     entries = os.listdir(path_images)
