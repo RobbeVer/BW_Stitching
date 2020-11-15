@@ -12,7 +12,6 @@ def calcRMSE(image1, image2):
     RMSE = np.sqrt(meanOfDifferencesSquared)
     return RMSE
 
-
 def calcMSE(image1, image2): #Calc MSE of greyscale --> Higher value = less similar
     err_matrix = (image1.astype("float") - image2.astype("float"))**2
     err = np.sum(err_matrix)
@@ -22,10 +21,21 @@ def calcMSE(image1, image2): #Calc MSE of greyscale --> Higher value = less simi
 def calcPSNR(image1, image2):
     MSE = calcMSE(image1, image2)
     return 10*math.log10((255**2)/(MSE))
-    
 
 def calcSSIM(image1, image2): #Calc SSIM of greyscale --> Higher value = more similar
     return ssim(image1,image2)
+
+def calcMI(image1, image2, bins = 20):
+    hgram, x_edges, y_edges = np.histogram2d(image1.ravel(), image2.ravel(), bins)
+
+    # Convert bins counts to probability values
+    pxy = hgram / float(np.sum(hgram))
+    px = np.sum(pxy, axis=1) # marginal for x over y
+    py = np.sum(pxy, axis=0) # marginal for y over x
+    px_py = px[:, None] * py[None, :] # Broadcast to multiply marginals
+    # Now we can do the calculation using the pxy, px_py 2D arrays
+    nzs = pxy > 0 # Only non-zero pxy values contribute to the sum
+    return np.sum(pxy[nzs] * np.log(pxy[nzs] / px_py[nzs]))
 
 #Load images from files:
 path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "Pictures\\")
