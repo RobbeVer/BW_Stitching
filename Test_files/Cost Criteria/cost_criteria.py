@@ -43,7 +43,7 @@ for i in range(images.shape[0]):
         for j,other in enumerate(images):
             if not(np.array_equal(original,other)):
                 RMSE,MSE,PSNR,SSIM = 0,0,0,0
-                for k in range(3): #3 Channels/image
+                for k in range(3): #3 Channels/image --> Grayscale good enough
                     RMSE += calcRMSE(original[:,:,k], other[:,:,k]) #Create agreggate
                     MSE += calcMSE(original[:,:,k], other[:,:,k]) #Create agreggate
                     PSNR += calcPSNR(original[:,:,k], other[:,:,k]) #Create agreggate
