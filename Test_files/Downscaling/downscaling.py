@@ -10,8 +10,9 @@ path_images = os.path.expanduser('~') + '\Pictures\Stitching_images'
 image = cv2.imread(path_images + '\IMG_0781.JPG')
 
 image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-image_downscaled = downscale_local_mean(image, (5, 5))
-
+image_downscaled = rescale(image, 0.25, anti_aliasing=False)
+# image_downscaled = downscale_local_mean(image, (15, 15, 1))
+cv2.imwrite(path_images + '\\IMG_0781_downscaled.jpg', image_downscaled)
 fig, axes = plt.subplots(nrows=1, ncols=2)
 
 ax = axes.ravel()

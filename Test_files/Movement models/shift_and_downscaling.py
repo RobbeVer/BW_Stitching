@@ -19,7 +19,7 @@ offset_image = downscale_local_mean(offset_image, (2, 2))
 
 xoff, yoff = cross_correlation_shifts(image, offset_image)
 print('Pixels shifted by:', xoff, yoff)
-corrected_image = shift(offset_image, shift=(xoff, yoff), mode='constant')
+corrected_image = shift(offset_image, shift=(-xoff, -yoff), mode='constant')
 
 fig = plt.figure(figsize=(10,10))
 ax1 = fig.add_subplot(2,2,1)
