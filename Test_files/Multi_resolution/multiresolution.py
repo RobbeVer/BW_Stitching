@@ -24,6 +24,8 @@ image_list = []
 offsetImage_list = []
 
 for i in range(0, 5):
+    image_gray = cv2.pyrDown(image_gray)
+    offset_image_gray = cv2.pyrDown(offset_image_gray)
     image_list.append(cv2.pyrDown(image_gray))
     offsetImage_list.append(cv2.pyrDown(offset_image_gray))
 
