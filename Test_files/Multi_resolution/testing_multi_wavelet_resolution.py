@@ -14,7 +14,7 @@ from scipy.ndimage import shift
 
 import pywt
 
-def calcMSE(image1, image2): #Calc MSE of greyscale --> Higher value = less similar
+def calcMSE(image1, image2): # Calc MSE of greyscale --> Higher value = less similar
     err_matrix = (image1.astype("float") - image2.astype("float"))**2
     err = np.sum(err_matrix)
     err /= float(image1.shape[0] * image1.shape[1])
@@ -30,7 +30,6 @@ def fuseCoeff(coeffs1, coeffs2, method):
     else:
         coeff = []
     return coeff
-
 
 def imageFusion(coeffs1, coeffs2, method):
     fusedCoeffs = []
@@ -48,7 +47,6 @@ def imageFusion(coeffs1, coeffs2, method):
 
             fusedCoeffs.append((c1,c2,c3))
     return fusedCoeffs
-
 
 path_images = os.path.expanduser('~') + '\Pictures\Stitching_images'
 image = cv2.imread(path_images + '\IMG_0781.JPG')
@@ -69,6 +67,12 @@ coeffs2 = wavelettf_greyscale(offset_image_list[0], 'haar')
 
 cA1, (cH1, cV1, cD1) = coeffs
 cA2, (cH2, cV2, cD2) = coeffs2
+
+radius = 705
+image_polar = warp_polar(cV1, radius=radius, multichannel=False)
+rotated_polar = warp_polar(cV2, radius=radius, multichannel=False)
+rotation, error, diffphase = phase_cross_correlation(image_polar, rotated_polar)
+print(rotation)
 
 shift1, error, diffphase = phase_cross_correlation(cH1, cH2)
 shift2, error1, diffphase1 = phase_cross_correlation(cV1, cV2)
@@ -123,7 +127,7 @@ plt.title('cD2', fontsize=10)
 fig.suptitle('Testing wavelets', fontsize=20)
 plt.show()
 
-fusedCoeffs = imageFusion(coeffs, coeffs2, 'max')
+fusedCoeffs = imageFusion(coeffs, coeffs2, 'max') # Better use max here for better results
 fusedImage = pywt.waverec2(fusedCoeffs, 'haar')
 
 fusedImage = np.multiply(np.divide(fusedImage - np.min(fusedImage),(np.max(fusedImage) - np.min(fusedImage))),255)
