@@ -6,7 +6,7 @@ from scipy.ndimage import shift
 from matplotlib import pyplot as plt
 
 # Path to the images
-path_images = os.path.expanduser('~') + '\Pictures\Stitching_images'
+path_images = os.path.expanduser('~') + '\Pictures\Achtergronden'
 
 # Print iterations progress
 def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
