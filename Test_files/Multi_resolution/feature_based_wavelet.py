@@ -12,8 +12,6 @@ from skimage.transform import warp_polar, rotate, rescale
 from scipy.ndimage import fourier_shift
 from scipy.ndimage import shift
 
-from SimpleITK import sitk
-
 import pywt
 
 def calcMSE(image1, image2): # Calc MSE of greyscale --> Higher value = less similar
@@ -57,46 +55,100 @@ image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 offset_image_gray = cv2.cvtColor(offset_image, cv2.COLOR_BGR2GRAY)
 image_list = []
 offset_image_list = []
-for i in range(4):
+for i in range(4): # gaussian pyramid
     image_gray = cv2.pyrDown(image_gray)
     offset_image_gray = cv2.pyrDown(offset_image_gray)
     image_list.append(image_gray)
     offset_image_list.append(offset_image_gray)
 
-# # TODO: working with wavelets
-# coeffs = wavelettf_greyscale(image_list[0], 'haar')
-# coeffs2 = wavelettf_greyscale(offset_image_list[0], 'haar')
+# Find features
+sift = cv2.SIFT_create()
+# find the key points and descriptors with SIFT
+kp1, des1 = sift.detectAndCompute(image_list[1],None)
+kp2, des2 = sift.detectAndCompute(offset_image_list[1],None)
 
-# cA1, (cH1, cV1, cD1) = coeffs
-# cA2, (cH2, cV2, cD2) = coeffs2
+# FLANN_INDEX_KDTREE = 0
+# index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
+# search_params = dict(checks = 50)
+# match = cv2.FlannBasedMatcher(index_params, search_params)
+# matches = match.knnMatch(des1,des2,k=2)
 
-radius = 705
-image_polar = warp_polar(cV1, multichannel=False)
-rotated_polar = warp_polar(cV2, multichannel=False)
-rotation, error, diffphase = phase_cross_correlation(image_polar, rotated_polar)
-print(rotation)
+match = cv2.BFMatcher()
+matches = match.knnMatch(des1,des2,k=2)
 
-# shift1, error, diffphase = phase_cross_correlation(cH1, cH2)
-# shift2, error1, diffphase1 = phase_cross_correlation(cV1, cV2)
-# print(f"Detected pixel offset in horizontal (y, x): {shift1}") # Take y-component from this one
-# print(f"Detected pixel offset in vertical (y, x): {shift2}") # Take x-component from this one
+print(len(matches))
+
+good = []
+for m,n in matches:
+    if m.distance < 0.2*n.distance:
+        good.append(m)
+
+print(len(good))
+M = None
+MIN_MATCH_COUNT = 10
+
+if len(good) > MIN_MATCH_COUNT:
+    src_pts = np.float32([ kp1[m.queryIdx].pt for m in good ]).reshape(-1,1,2)
+    dst_pts = np.float32([ kp2[m.trainIdx].pt for m in good ]).reshape(-1,1,2)
+
+    M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+
+    h,w = offset_image_list[1].shape
+    pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
+    dst = cv2.perspectiveTransform(pts, M)
+
+else:
+    print("Not enought matches are found - %d/%d", (len(good)/MIN_MATCH_COUNT))
+
+dst = cv2.warpPerspective(offset_image_list[1],M,(image_list[1].shape[1] + offset_image_list[1].shape[1], image_list[1].shape[0])) # Transformation used here
+
+# dst[0:image_list[1].shape[0],0:image_list[1].shape[1]] = image_list[1] # Clitting here
+
+# Determine wavelet coefficients
+coeffs = wavelettf_greyscale(image_list[0], 'haar')
+coeffs2 = wavelettf_greyscale(offset_image_list[0], 'haar')
+
+cA1, (cH1, cV1, cD1) = coeffs
+cA2, (cH2, cV2, cD2) = coeffs2
+
+# cv2.imshow("original_image_stitched.jpg", dst)
+def trim(frame):
+    #crop top
+    if not np.sum(frame[0]):
+        return trim(frame[1:])
+    #crop top
+    if not np.sum(frame[-1]):
+        return trim(frame[:-2])
+    #crop top
+    if not np.sum(frame[:,0]):
+        return trim(frame[:,1:])
+    #crop top
+    if not np.sum(frame[:,-1]):
+        return trim(frame[:,:-2])
+    return frame
+
+cv2.imshow("original_image_stitched_crop.jpg", trim(dst))
+cv2.waitKey()
+print(dst.shape)
+print(image_list[1].shape)
+# cv2.imsave("original_image_stitched_crop.jpg", trim(dst))
 
 # new_image =  np.zeros([image_list[0].shape[0]+2*int(abs(shift1[0])), image_list[0].shape[1]+2*int(abs(shift2[1]))],dtype=np.uint8)
 # new_offset_image =  np.zeros([image_list[0].shape[0]+2*int(abs(shift1[0])), image_list[0].shape[1]+2*int(abs(shift2[1]))],dtype=np.uint8)
 
-# Look in which way they are moved from each other
-if shift1[0] < 0 and shift2[1] < 0:
-    new_image[2*int(abs(shift1[0]))-1:-1, 2*int(abs(shift2[1]))-1:-1] = image_list[0][:,:]
-    new_offset_image[0:image_list[0].shape[0], 0:image_list[0].shape[1]] = offset_image_list[0][:,:]
-elif shift1[0] > 0 and shift2[1] < 0:
-    new_image[2*int(abs(shift1[0]))-1:-1, 2*int(abs(shift2[1]))-1:-1] = image_list[0][:,:]
-    new_offset_image[0:image_list[0].shape[0], 0:image_list[0].shape[1]] = offset_image_list[0][:,:]
-elif shift1[0] < 0 and shift2[1] > 0:
-    new_image[2*int(abs(shift1[0]))-1:-1, 2*int(abs(shift2[1]))-1:-1] = image_list[0][:,:]
-    new_offset_image[0:image_list[0].shape[0], 0:image_list[0].shape[1]] = offset_image_list[0][:,:]    
-else:
-    new_image[0:image_list[0].shape[0], 0:image_list[0].shape[1]] = image_list[0][:,:]
-    new_offset_image[2*int(abs(shift1[0]))-1:-1, 2*int(abs(shift2[1]))-1:-1] = offset_image_list[0][:,:]
+# # Look in which way they are moved from each other
+# if shift1[0] < 0 and shift2[1] < 0:
+#     new_image[2*int(abs(shift1[0]))-1:-1, 2*int(abs(shift2[1]))-1:-1] = image_list[0][:,:]
+#     new_offset_image[0:image_list[0].shape[0], 0:image_list[0].shape[1]] = offset_image_list[0][:,:]
+# elif shift1[0] > 0 and shift2[1] < 0:
+#     new_image[2*int(abs(shift1[0]))-1:-1, 2*int(abs(shift2[1]))-1:-1] = image_list[0][:,:]
+#     new_offset_image[0:image_list[0].shape[0], 0:image_list[0].shape[1]] = offset_image_list[0][:,:]
+# elif shift1[0] < 0 and shift2[1] > 0:
+#     new_image[2*int(abs(shift1[0]))-1:-1, 2*int(abs(shift2[1]))-1:-1] = image_list[0][:,:]
+#     new_offset_image[0:image_list[0].shape[0], 0:image_list[0].shape[1]] = offset_image_list[0][:,:]    
+# else:
+#     new_image[0:image_list[0].shape[0], 0:image_list[0].shape[1]] = image_list[0][:,:]
+#     new_offset_image[2*int(abs(shift1[0]))-1:-1, 2*int(abs(shift2[1]))-1:-1] = offset_image_list[0][:,:]
 
 # coeffs = wavelettf_greyscale(new_image, 'haar')
 # coeffs2 = wavelettf_greyscale(new_offset_image, 'haar')
@@ -140,53 +192,16 @@ else:
 # fig.suptitle('Testing wavelets', fontsize=20)
 # plt.show()
 
-cA2 = rotate(cA2, -(rotation[0]))
-cH2 = rotate(cH2, -(rotation[0]))
-cV2 = rotate(cV2, -(rotation[0]))
-cD2 = rotate(cD2, -(rotation[0]))
-coeffs2_rotated = (cA2, (cH2, cV2, cD2))
-fusedCoeffs = imageFusion(coeffs, coeffs2_rotated, 'max') # Better use max here for better results
-fusedImage = pywt.waverec2(fusedCoeffs, 'haar')
+# cA2 = rotate(cA2, -(rotation[0]))
+# cH2 = rotate(cH2, -(rotation[0]))
+# cV2 = rotate(cV2, -(rotation[0]))
+# cD2 = rotate(cD2, -(rotation[0]))
+# coeffs2_rotated = (cA2, (cH2, cV2, cD2))
+# fusedCoeffs = imageFusion(coeffs, coeffs2_rotated, 'max') # Better use max here for better results
+# fusedImage = pywt.waverec2(fusedCoeffs, 'haar')
 
 # fusedImage = np.multiply(np.divide(fusedImage - np.min(fusedImage),(np.max(fusedImage) - np.min(fusedImage))),255)
 # fusedImage = fusedImage.astype(np.uint8)
 
 # cv2.imshow("win",fusedImage)
 # cv2.waitKey()
-
-# Works for image registration for intensity based
-radius = 705
-
-for i in range(len(image_list)):  
-    shift, error, diffphase = phase_cross_correlation(image_list[i], offset_image_list[i])
-
-    image_polar = warp_polar(image_list[i], radius=radius, multichannel=False)
-    rotated_polar = warp_polar(offset_image_list[i], radius=radius, multichannel=False)
-    rotation, error, diffphase = phase_cross_correlation(image_polar, rotated_polar)    
-
-    print(calcMSE(image_list[i], offset_image_list[i]))
-    print(f"Detected pixel offset (y, x): {shift}")
-    print(f"Detected a rotation of: {rotation[0]}")
-
-fig = plt.figure(figsize=(8, 3))
-ax1 = plt.subplot(1, 3, 1)
-ax2 = plt.subplot(1, 3, 2, sharex=ax1, sharey=ax1)
-ax3 = plt.subplot(1, 3, 3)
-
-ax1.imshow(image_list[0], cmap='gray')
-ax1.set_axis_off()
-ax1.set_title('Reference image')
-
-ax2.imshow(offset_image_list[0], cmap='gray')
-ax2.set_axis_off()
-ax2.set_title('Offset image')
-
-# Show the output of a cross-correlation to show what the algorithm is
-# doing behind the scenes
-image_product = np.fft.fft2(image_list[0]) * np.fft.fft2(offset_image_list[0]).conj()
-cc_image = np.fft.fftshift(np.fft.ifft2(image_product))
-ax3.imshow(cc_image.real)
-ax3.set_axis_off()
-ax3.set_title("Cross-correlation")
-
-plt.show()
