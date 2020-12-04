@@ -12,6 +12,8 @@ from skimage.transform import warp_polar, rotate, rescale
 from scipy.ndimage import fourier_shift
 from scipy.ndimage import shift
 
+from SimpleITK import sitk
+
 import pywt
 
 def calcMSE(image1, image2): # Calc MSE of greyscale --> Higher value = less similar
@@ -49,8 +51,8 @@ def imageFusion(coeffs1, coeffs2, method):
     return fusedCoeffs
 
 path_images = os.path.expanduser('~') + '\Pictures\Stitching_images'
-image = cv2.imread(path_images + '\IMG_0781.JPG')
-offset_image = cv2.imread(path_images + '\IMG_0782.JPG')
+image = cv2.imread(path_images + '\IMG_0783.JPG')
+offset_image = cv2.imread(path_images + '\IMG_0784.JPG')
 image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 offset_image_gray = cv2.cvtColor(offset_image, cv2.COLOR_BGR2GRAY)
 image_list = []
@@ -69,8 +71,8 @@ cA1, (cH1, cV1, cD1) = coeffs
 cA2, (cH2, cV2, cD2) = coeffs2
 
 radius = 705
-image_polar = warp_polar(cV1, radius=radius, multichannel=False)
-rotated_polar = warp_polar(cV2, radius=radius, multichannel=False)
+image_polar = warp_polar(cV1, multichannel=False)
+rotated_polar = warp_polar(cV2, multichannel=False)
 rotation, error, diffphase = phase_cross_correlation(image_polar, rotated_polar)
 print(rotation)
 
@@ -82,8 +84,19 @@ print(f"Detected pixel offset in vertical (y, x): {shift2}") # Take x-component 
 new_image =  np.zeros([image_list[0].shape[0]+2*int(abs(shift1[0])), image_list[0].shape[1]+2*int(abs(shift2[1]))],dtype=np.uint8)
 new_offset_image =  np.zeros([image_list[0].shape[0]+2*int(abs(shift1[0])), image_list[0].shape[1]+2*int(abs(shift2[1]))],dtype=np.uint8)
 
-new_image[2*int(abs(shift1[0]))-1:-1, 2*int(abs(shift2[1]))-1:-1] = image_list[0][:,:]
-new_offset_image[0:image_list[0].shape[0], 0:image_list[0].shape[1]] = offset_image_list[0][:,:]
+# Look in which way they are moved from each other
+if shift1[0] < 0 and shift2[1] < 0:
+    new_image[2*int(abs(shift1[0]))-1:-1, 2*int(abs(shift2[1]))-1:-1] = image_list[0][:,:]
+    new_offset_image[0:image_list[0].shape[0], 0:image_list[0].shape[1]] = offset_image_list[0][:,:]
+elif shift1[0] > 0 and shift2[1] < 0:
+    new_image[2*int(abs(shift1[0]))-1:-1, 2*int(abs(shift2[1]))-1:-1] = image_list[0][:,:]
+    new_offset_image[0:image_list[0].shape[0], 0:image_list[0].shape[1]] = offset_image_list[0][:,:]
+elif shift1[0] < 0 and shift2[1] > 0:
+    new_image[2*int(abs(shift1[0]))-1:-1, 2*int(abs(shift2[1]))-1:-1] = image_list[0][:,:]
+    new_offset_image[0:image_list[0].shape[0], 0:image_list[0].shape[1]] = offset_image_list[0][:,:]    
+else:
+    new_image[0:image_list[0].shape[0], 0:image_list[0].shape[1]] = image_list[0][:,:]
+    new_offset_image[2*int(abs(shift1[0]))-1:-1, 2*int(abs(shift2[1]))-1:-1] = offset_image_list[0][:,:]
 
 coeffs = wavelettf_greyscale(new_image, 'haar')
 coeffs2 = wavelettf_greyscale(new_offset_image, 'haar')
@@ -127,7 +140,12 @@ plt.title('cD2', fontsize=10)
 fig.suptitle('Testing wavelets', fontsize=20)
 plt.show()
 
-fusedCoeffs = imageFusion(coeffs, coeffs2, 'max') # Better use max here for better results
+cA2 = rotate(cA2, -(rotation[0]))
+cH2 = rotate(cH2, -(rotation[0]))
+cV2 = rotate(cV2, -(rotation[0]))
+cD2 = rotate(cD2, -(rotation[0]))
+coeffs2_rotated = (cA2, (cH2, cV2, cD2))
+fusedCoeffs = imageFusion(coeffs, coeffs2_rotated, 'max') # Better use max here for better results
 fusedImage = pywt.waverec2(fusedCoeffs, 'haar')
 
 fusedImage = np.multiply(np.divide(fusedImage - np.min(fusedImage),(np.max(fusedImage) - np.min(fusedImage))),255)
