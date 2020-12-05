@@ -67,23 +67,14 @@ sift = cv2.SIFT_create()
 kp1, des1 = sift.detectAndCompute(image_list[1],None)
 kp2, des2 = sift.detectAndCompute(offset_image_list[1],None)
 
-# FLANN_INDEX_KDTREE = 0
-# index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
-# search_params = dict(checks = 50)
-# match = cv2.FlannBasedMatcher(index_params, search_params)
-# matches = match.knnMatch(des1,des2,k=2)
-
 match = cv2.BFMatcher()
 matches = match.knnMatch(des1,des2,k=2)
-
-print(len(matches))
 
 good = []
 for m,n in matches:
     if m.distance < 0.2*n.distance:
         good.append(m)
 
-print(len(good))
 M = None
 MIN_MATCH_COUNT = 10
 
@@ -96,13 +87,16 @@ if len(good) > MIN_MATCH_COUNT:
     h,w = offset_image_list[1].shape
     pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
     dst = cv2.perspectiveTransform(pts, M)
-
 else:
     print("Not enought matches are found - %d/%d", (len(good)/MIN_MATCH_COUNT))
 
 dst = cv2.warpPerspective(offset_image_list[1],M,(image_list[1].shape[1] + offset_image_list[1].shape[1], image_list[1].shape[0])) # Transformation used here
 
-# dst[0:image_list[1].shape[0],0:image_list[1].shape[1]] = image_list[1] # Clitting here
+dst_clitted = copy.deepcopy(dst)
+
+cv2.imshow("dst", dst_clitted)
+
+dst_clitted[0:image_list[1].shape[0],0:image_list[1].shape[1]] = image_list[1] # Clitting here
 
 # Determine wavelet coefficients
 coeffs = wavelettf_greyscale(image_list[0], 'haar')
@@ -127,10 +121,9 @@ def trim(frame):
         return trim(frame[:,:-2])
     return frame
 
-cv2.imshow("original_image_stitched_crop.jpg", trim(dst))
+cv2.imshow("dst_clitted", trim(dst_clitted))
 cv2.waitKey()
-print(dst.shape)
-print(image_list[1].shape)
+print(trim(dst_clitted).shape)
 # cv2.imsave("original_image_stitched_crop.jpg", trim(dst))
 
 # new_image =  np.zeros([image_list[0].shape[0]+2*int(abs(shift1[0])), image_list[0].shape[1]+2*int(abs(shift2[1]))],dtype=np.uint8)
