@@ -53,8 +53,8 @@ while(not(images.empty())):
     image_A = images.get()
     image_B = images.get()
 
-    image_A = cv2.pyrDown(image_A)
-    image_B = cv2.pyrDown(image_B)
+    # image_A = cv2.pyrDown(image_A)
+    # image_B = cv2.pyrDown(image_B)
 
     stitched_image = hp.Transforming(cv2.cvtColor(image_A, cv2.COLOR_BGR2GRAY), cv2.cvtColor(image_B, cv2.COLOR_BGR2GRAY))
     stitched_images.append(stitched_image)
@@ -62,7 +62,7 @@ while(not(images.empty())):
     hp.printProgressBar(i, length_progress, prefix='Progress', suffix='Complete', length=100)
 
 # Stitch the pre-stiched images
-# path_stitched_images = os.path.expanduser('~') + '\Pictures\Stitched'
+path_stitched_images = os.path.expanduser('~') + '\Pictures\Stitched'
 length_stitched_images = len(stitched_images)
 counter = 0
 sub = 1
@@ -73,7 +73,7 @@ while(length_stitched_images != 1):
         if x+1 >= length_stitched_images-1:
             image_A = stitched_images[x]
             stitched_images[x//2] = image_A
-            # cv2.imwrite(path_stitched_images + '\stich_' + str(sub) + "_" + str(counter) + ".jpg", stitched_image)
+            cv2.imwrite(path_stitched_images + '\stich_' + str(sub) + "_" + str(counter) + ".jpg", stitched_image)
             counter += 1
         else:
             image_A = stitched_images[x]
@@ -81,7 +81,7 @@ while(length_stitched_images != 1):
 
             stitched_image = hp.Transforming(image_A, image_B)
             stitched_images[x//2] = stitched_image
-            # cv2.imwrite(path_stitched_images + '\stich_' + str(sub) + "_" + str(counter) + ".jpg", stitched_image)
+            cv2.imwrite(path_stitched_images + '\stich_' + str(sub) + "_" + str(counter) + ".jpg", stitched_image)
             counter += 1
     
     hp.printProgressBar(length_stitched_images, length_stitched_images, prefix='Progress', suffix='Complete', length=100)

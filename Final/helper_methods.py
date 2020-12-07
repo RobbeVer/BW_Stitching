@@ -124,6 +124,105 @@ def wavelettf_greyscale(img, wavelet):
     cA, (cH, cV, cD) = coeffs
     return coeffs
 
+def Transforming2(start_img_gray, next_img_gray):
+    coeffs = wavelettf_greyscale(start_img_gray, 'haar')    
+    cA, (cH, cV, cD) = coeffs
+
+    scale_val_H = 255 / np.max(cH)
+    scale_val_V = 255 / np.max(cV)
+    cH = cH * scale_val_H
+    cV = cV * scale_val_V
+    # Find features
+    sift = cv2.SIFT_create()
+
+    # print(np.max(cH))
+    kp1, des1 = sift.detectAndCompute(np.uint8((cH + cV)), None)
+
+    # Parameters for nearest-neighbor matching
+    FLANN_INDEX_KDTREE = 1
+    flann_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
+    matcher = cv2.FlannBasedMatcher(flann_params)
+
+    coeffs2 = wavelettf_greyscale(next_img_gray, 'haar')
+    cA2, (cH2, cV2, cD2) = coeffs2
+
+    # Find points in the next frame
+
+    scale_val_H = 255 / np.max(cH2)
+    scale_val_V = 255 / np.max(cV2)
+    cH2 = cH2 * scale_val_H
+    cV2 = cV2 * scale_val_V
+    kp2, des2 = sift.detectAndCompute(np.uint8((cH2 + cV2)), None)
+
+    matches = matcher.knnMatch(des1, des2, k=2)
+    good = []
+    for m,n in matches: # m is from the first image, n is from the next image
+        if m.distance < 0.8*n.distance:
+            good.append(m)
+
+    # If we want to see the matches we can uncomment this section
+    # color = (250, 128, 114)
+    # img_match = cv2.drawMatches(start_img_gray, kp1, next_img_gray, kp2, good, outImg=None, matchColor=color, singlePointColor=color)
+    # cv2.imshow('Test', img_match)
+    # cv2.waitKey()
+
+    if len(good) > 10:
+        src_pts = np.array([kp1[m.queryIdx].pt for m in good])
+        dst_pts = np.array([kp2[m.trainIdx].pt for m in good])
+
+        H, status = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+
+        # H = H / H[2,2]
+        H_inv = np.linalg.inv(H)
+
+        (min_x, min_y, max_x, max_y) = findDimensions(cv2.pyrDown(next_img_gray), H_inv)
+
+        max_x = max(max_x, cv2.pyrDown(start_img_gray).shape[1])
+        max_y = max(max_y, cv2.pyrDown(start_img_gray).shape[0])
+
+        move_h = np.matrix(np.identity(3), np.float32)
+
+        if ( min_x < 0 ):
+            move_h[0,2] += -min_x
+            max_x += -min_x
+
+        if ( min_y < 0 ):
+            move_h[1,2] += -min_y
+            max_y += -min_y
+
+        # print ("Homography: \n", H)
+        # print ("Inverse Homography: \n", H_inv)
+        # print ("Min Points: ", (min_x, min_y))
+
+        mod_inv_h = move_h * H_inv
+        
+        img_w = int(math.ceil(max_x))
+        img_h = int(math.ceil(max_y))
+
+    base_img_warp = cv2.warpPerspective(cv2.pyrDown(start_img_gray), move_h, (img_w, img_h))
+    next_img_warp = cv2.warpPerspective(cv2.pyrDown(next_img_gray), mod_inv_h, (img_w, img_h))
+
+    # cv2.imshow("Base",base_img_warp)
+    # cv2.imshow("Next",next_img_warp)
+
+    # cv2.waitKey()
+
+    coeffs = wavelettf_greyscale(base_img_warp, 'haar')
+    coeffs2 = wavelettf_greyscale(next_img_warp, 'haar')
+
+    cA1, (cH1, cV1, cD1) = coeffs
+    cA2, (cH2, cV2, cD2) = coeffs2
+
+    fusedCoeffs = imageFusion(coeffs, coeffs2, 'max') # Better use max here for better results
+
+    fusedImage = pywt.waverec2(fusedCoeffs, 'haar')
+
+    fusedImage = np.multiply(np.divide(fusedImage - np.min(fusedImage),(np.max(fusedImage) - np.min(fusedImage))),255)
+    fusedImage = fusedImage.astype(np.uint8)
+    fusedImage = cv2.pyrUp(fusedImage)
+
+    return fusedImage
+
 def Transforming(start_img_gray, next_img_gray):
     # Find features
     sift = cv2.SIFT_create()

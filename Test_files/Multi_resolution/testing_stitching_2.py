@@ -82,10 +82,18 @@ def fuseCoeff2(coeffs1, coeffs2, method):
 
 def imageFusion(coeffs1, coeffs2, method):
     fusedCoeffs = []
-    indices = []
+    for i in range(len(coeffs1)-1):
 
-    fusedCoeffs = fuseCoeff2(coeffs1,coeffs2, method)
+        # The first values in each decomposition is the approximation values of the top level
+        if(i == 0):
+            fusedCoeffs.append(fuseCoeff(coeffs1[0],coeffs2[0], method))
+        else:
+            # For the rest of the levels we have tupels with 3 coeeficents
+            c1 = fuseCoeff(coeffs1[i][0], coeffs2[i][0], method)
+            c2 = fuseCoeff(coeffs1[i][1], coeffs2[i][1], method)
+            c3 = fuseCoeff(coeffs1[i][2], coeffs2[i][2], method)
 
+            fusedCoeffs.append((c1,c2,c3))
     return fusedCoeffs
 
 def wavelettf_greyscale(img, wavelet):
@@ -127,7 +135,6 @@ def plot_coeffs(coeffs, title):
 
     fig.suptitle(title, fontsize=60)
     plt.show()
-
 
 path_images = os.path.expanduser('~') + '\Pictures\Stitching_images'
 
@@ -233,15 +240,15 @@ coeffs2 = wavelettf_greyscale(next_img_warp, 'haar')
 cA1, (cH1, cV1, cD1) = coeffs
 cA2, (cH2, cV2, cD2) = coeffs2
 
-fusedCoeffs = imageFusion(coeffs, coeffs2, 'adding') # Better use max here for better results
+fusedCoeffs = imageFusion(coeffs, coeffs2, 'max') # Better use max here for better results
 
-plot_coeffs(fusedCoeffs, 'Fused')
+# plot_coeffs(fusedCoeffs, 'Fused')
 
 fusedImage = pywt.waverec2(fusedCoeffs, 'haar')
 
 fusedImage = np.multiply(np.divide(fusedImage - np.min(fusedImage),(np.max(fusedImage) - np.min(fusedImage))),255)
 fusedImage = fusedImage.astype(np.uint8)
 
-# cv2.imshow("Fused",fusedImage)
+cv2.imshow("Fused",fusedImage)
 
-# cv2.waitKey()
+cv2.waitKey()
