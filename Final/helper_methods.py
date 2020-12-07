@@ -134,9 +134,6 @@ def Transforming(start_img_gray, next_img_gray):
     flann_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
     matcher = cv2.FlannBasedMatcher(flann_params)
 
-    # Get the next image
-    # next_img_gray = cv2.cvtColor(next_img, cv2.COLOR_BGR2GRAY)
-
     # Find points in the next frame
     kp2, des2 = sift.detectAndCompute(next_img_gray,None)
 
@@ -163,13 +160,13 @@ def Transforming(start_img_gray, next_img_gray):
 
         move_h = np.matrix(np.identity(3), np.float32)
 
-        # if ( min_x < 0 ):
-        #     move_h[0,2] += -min_x
-        #     max_x += -min_x
+        if ( min_x < 0 ):
+            move_h[0,2] += -min_x
+            max_x += -min_x
 
-        # if ( min_y < 0 ):
-        #     move_h[1,2] += -min_y
-        #     max_y += -min_y
+        if ( min_y < 0 ):
+            move_h[1,2] += -min_y
+            max_y += -min_y
 
         mod_inv_h = move_h * H_inv
         

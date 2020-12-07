@@ -2,7 +2,7 @@
 import cv2
 import os
 from queue import Queue
-
+import numpy as np
 import helper_methods as hp
 
 # 1. Lees foto A en foto B in
@@ -55,7 +55,7 @@ image_B = images.get()
 #%% Image A = original image B
 print('Start stitching progress')
 hp.printProgressBar(0, length_progress, prefix='Progress', suffix='Complete', length=length_progress)
-for x in range(1):
+for x in range(2):
     image_A = cv2.pyrDown(image_A)
     image_B = cv2.pyrDown(image_B)
 image_A = hp.Transforming(cv2.cvtColor(image_A, cv2.COLOR_BGR2GRAY), cv2.cvtColor(image_B, cv2.COLOR_BGR2GRAY))
@@ -78,7 +78,7 @@ while(not(images.empty())):
     # Stitch image B together with stitched_image
     
     # Image A = orginal image B
-    for x in range(1):
+    for x in range(2):
         image_B = cv2.pyrDown(image_B)
 
     image_A = hp.Transforming(image_A, cv2.cvtColor(image_B, cv2.COLOR_BGR2GRAY))
@@ -87,5 +87,10 @@ while(not(images.empty())):
 
     cv2.imwrite('stitched.jpg', image_A)
 
+# Sharpen the image
+kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])
+image_A = cv2.filter2D(image_A, -1, kernel)
+
 # Save stitched image
+cv2.imwrite('stitched.jpg', image_A)
 print('Finished')

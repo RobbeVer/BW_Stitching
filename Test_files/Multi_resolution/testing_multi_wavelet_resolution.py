@@ -81,8 +81,8 @@ print(rotation)
 # print(f"Detected pixel offset in horizontal (y, x): {shift1}") # Take y-component from this one
 # print(f"Detected pixel offset in vertical (y, x): {shift2}") # Take x-component from this one
 
-# new_image =  np.zeros([image_list[0].shape[0]+2*int(abs(shift1[0])), image_list[0].shape[1]+2*int(abs(shift2[1]))],dtype=np.uint8)
-# new_offset_image =  np.zeros([image_list[0].shape[0]+2*int(abs(shift1[0])), image_list[0].shape[1]+2*int(abs(shift2[1]))],dtype=np.uint8)
+new_image =  np.zeros([image_list[0].shape[0]+2*int(abs(shift1[0])), image_list[0].shape[1]+2*int(abs(shift2[1]))],dtype=np.uint8)
+new_offset_image =  np.zeros([image_list[0].shape[0]+2*int(abs(shift1[0])), image_list[0].shape[1]+2*int(abs(shift2[1]))],dtype=np.uint8)
 
 # Look in which way they are moved from each other
 if shift1[0] < 0 and shift2[1] < 0:

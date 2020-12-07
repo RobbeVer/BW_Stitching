@@ -105,7 +105,7 @@ def wavelettf_greyscale(img, wavelet):
 path_images = os.path.expanduser('~') + '\Pictures\Stitching_images'
 
 # Load starting image
-start_img = cv2.imread(path_images + '\IMG_0783.JPG')
+start_img = cv2.imread(path_images + '\IMG_0828.JPG')
 start_img_gray = cv2.cvtColor(start_img, cv2.COLOR_BGR2GRAY)
 
 # Downsample the image
@@ -122,7 +122,7 @@ flann_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
 matcher = cv2.FlannBasedMatcher(flann_params)
 
 # Get the next image
-next_img = cv2.imread(path_images + '\IMG_0784.JPG')
+next_img = cv2.imread(path_images + '\IMG_0829.JPG')
 next_img_gray = cv2.cvtColor(next_img, cv2.COLOR_BGR2GRAY)
 
 # Downsample the image
