@@ -224,11 +224,11 @@ def Transforming2(start_img_gray, next_img_gray):
     return fusedImage
 
 def Transforming(start_img_gray, next_img_gray):
-    # Find features
+    # Find features with SIFT (Scale-Invariant Feature Transform)
     sift = cv2.SIFT_create()
     kp1, des1 = sift.detectAndCompute(start_img_gray, None)
 
-    # Parameters for nearest-neighbor matching
+    # Parameters for nearest-neighbor matching, we use Flann here
     FLANN_INDEX_KDTREE = 1
     flann_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
     matcher = cv2.FlannBasedMatcher(flann_params)
@@ -238,6 +238,7 @@ def Transforming(start_img_gray, next_img_gray):
 
     matches = matcher.knnMatch(des1, des2, k=2)
 
+    # We need to filter the matches because some of them are not 100% correct
     good = []
     for m,n in matches: # m is from the first image, n is from the next image
         if m.distance < 0.8*n.distance:
@@ -247,18 +248,24 @@ def Transforming(start_img_gray, next_img_gray):
         src_pts = np.array([kp1[m.queryIdx].pt for m in good])
         dst_pts = np.array([kp2[m.trainIdx].pt for m in good])
 
+        # Find the homography matrix
         H, status = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
 
-        # H = H / H[2,2]
+        # Calculate the inverse of the homography matrix to use for the affine transformation
         H_inv = np.linalg.inv(H)
 
+        # To fusion the two images together, we need to find the minimum and maximum points to determine the width and height of the fusion image
         (min_x, min_y, max_x, max_y) = findDimensions(next_img_gray, H_inv)
 
+        # Check if max_x is bigger than the width of the start image
         max_x = max(max_x, start_img_gray.shape[1])
+        # Check if max_y is bigger than the height of the start image
         max_y = max(max_y, start_img_gray.shape[0])
 
+        # Create an unit matrix
         move_h = np.matrix(np.identity(3), np.float32)
 
+        # It can happen that there needs to be a translation to the left or up, so there needs to be a correction to the translation
         if ( min_x < 0 ):
             move_h[0,2] += -min_x
             max_x += -min_x
@@ -272,8 +279,8 @@ def Transforming(start_img_gray, next_img_gray):
         img_w = int(math.ceil(max_x))
         img_h = int(math.ceil(max_y))
 
-    base_img_warp = cv2.warpPerspective(start_img_gray, move_h, (img_w, img_h))
-    next_img_warp = cv2.warpPerspective(next_img_gray, mod_inv_h, (img_w, img_h))
+    base_img_warp = cv2.warpPerspective(start_img_gray, move_h, (img_w, img_h)) # The only thing that happens here is that the start image gets black filled spaces so that it is placed good ready for the fusion
+    next_img_warp = cv2.warpPerspective(next_img_gray, mod_inv_h, (img_w, img_h)) # The next image is warped with the transformation matrix
 
     # First method for fusing
     coeffs = wavelettf_greyscale(base_img_warp, 'haar')
@@ -282,7 +289,7 @@ def Transforming(start_img_gray, next_img_gray):
     cA1, (cH1, cV1, cD1) = coeffs
     cA2, (cH2, cV2, cD2) = coeffs2
 
-    fusedCoeffs = imageFusion(coeffs, coeffs2, 'max') # Better use max here for better results
+    fusedCoeffs = imageFusion(coeffs, coeffs2, 'max') # The coefficients are fused here to result in a fusion image
     fusedImage = pywt.waverec2(fusedCoeffs, 'haar')
 
     fusedImage = np.multiply(np.divide(fusedImage - np.min(fusedImage),(np.max(fusedImage) - np.min(fusedImage))),255)

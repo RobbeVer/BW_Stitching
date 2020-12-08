@@ -11,9 +11,6 @@ from skimage.registration._phase_cross_correlation import _upsampled_dft
 from skimage.transform import warp_polar, rotate, rescale
 from scipy.ndimage import fourier_shift
 from scipy.ndimage import shift
-
-from SimpleITK import sitk
-
 import pywt
 
 def calcMSE(image1, image2): # Calc MSE of greyscale --> Higher value = less similar
@@ -64,11 +61,11 @@ for i in range(4):
     offset_image_list.append(offset_image_gray)
 
 # # TODO: working with wavelets
-# coeffs = wavelettf_greyscale(image_list[0], 'haar')
-# coeffs2 = wavelettf_greyscale(offset_image_list[0], 'haar')
+coeffs = wavelettf_greyscale(image_list[0], 'haar')
+coeffs2 = wavelettf_greyscale(offset_image_list[0], 'haar')
 
-# cA1, (cH1, cV1, cD1) = coeffs
-# cA2, (cH2, cV2, cD2) = coeffs2
+cA1, (cH1, cV1, cD1) = coeffs
+cA2, (cH2, cV2, cD2) = coeffs2
 
 radius = 705
 image_polar = warp_polar(cV1, multichannel=False)
@@ -76,10 +73,10 @@ rotated_polar = warp_polar(cV2, multichannel=False)
 rotation, error, diffphase = phase_cross_correlation(image_polar, rotated_polar)
 print(rotation)
 
-# shift1, error, diffphase = phase_cross_correlation(cH1, cH2)
-# shift2, error1, diffphase1 = phase_cross_correlation(cV1, cV2)
-# print(f"Detected pixel offset in horizontal (y, x): {shift1}") # Take y-component from this one
-# print(f"Detected pixel offset in vertical (y, x): {shift2}") # Take x-component from this one
+shift1, error, diffphase = phase_cross_correlation(cH1, cH2)
+shift2, error1, diffphase1 = phase_cross_correlation(cV1, cV2)
+print(f"Detected pixel offset in horizontal (y, x): {shift1}") # Take y-component from this one
+print(f"Detected pixel offset in vertical (y, x): {shift2}") # Take x-component from this one
 
 new_image =  np.zeros([image_list[0].shape[0]+2*int(abs(shift1[0])), image_list[0].shape[1]+2*int(abs(shift2[1]))],dtype=np.uint8)
 new_offset_image =  np.zeros([image_list[0].shape[0]+2*int(abs(shift1[0])), image_list[0].shape[1]+2*int(abs(shift2[1]))],dtype=np.uint8)
@@ -98,11 +95,11 @@ else:
     new_image[0:image_list[0].shape[0], 0:image_list[0].shape[1]] = image_list[0][:,:]
     new_offset_image[2*int(abs(shift1[0]))-1:-1, 2*int(abs(shift2[1]))-1:-1] = offset_image_list[0][:,:]
 
-# coeffs = wavelettf_greyscale(new_image, 'haar')
-# coeffs2 = wavelettf_greyscale(new_offset_image, 'haar')
+coeffs = wavelettf_greyscale(new_image, 'haar')
+coeffs2 = wavelettf_greyscale(new_offset_image, 'haar')
 
-# cA1, (cH1, cV1, cD1) = coeffs
-# cA2, (cH2, cV2, cD2) = coeffs2
+cA1, (cH1, cV1, cD1) = coeffs
+cA2, (cH2, cV2, cD2) = coeffs2
 
 # fig = plt.figure(figsize=(30, 30))
 # plt.subplot(2, 4, 1)
@@ -148,45 +145,46 @@ coeffs2_rotated = (cA2, (cH2, cV2, cD2))
 fusedCoeffs = imageFusion(coeffs, coeffs2_rotated, 'max') # Better use max here for better results
 fusedImage = pywt.waverec2(fusedCoeffs, 'haar')
 
-# fusedImage = np.multiply(np.divide(fusedImage - np.min(fusedImage),(np.max(fusedImage) - np.min(fusedImage))),255)
-# fusedImage = fusedImage.astype(np.uint8)
+fusedImage = np.multiply(np.divide(fusedImage - np.min(fusedImage),(np.max(fusedImage) - np.min(fusedImage))),255)
+fusedImage = fusedImage.astype(np.uint8)
 
+cv2.imwrite('Image_registration_based_on_wavelets.jpg', fusedImage)
 # cv2.imshow("win",fusedImage)
 # cv2.waitKey()
 
 # Works for image registration for intensity based
-radius = 705
+# radius = 705
 
-for i in range(len(image_list)):  
-    shift, error, diffphase = phase_cross_correlation(image_list[i], offset_image_list[i])
+# for i in range(len(image_list)):  
+#     shift, error, diffphase = phase_cross_correlation(image_list[i], offset_image_list[i])
 
-    image_polar = warp_polar(image_list[i], radius=radius, multichannel=False)
-    rotated_polar = warp_polar(offset_image_list[i], radius=radius, multichannel=False)
-    rotation, error, diffphase = phase_cross_correlation(image_polar, rotated_polar)    
+#     image_polar = warp_polar(image_list[i], radius=radius, multichannel=False)
+#     rotated_polar = warp_polar(offset_image_list[i], radius=radius, multichannel=False)
+#     rotation, error, diffphase = phase_cross_correlation(image_polar, rotated_polar)    
 
-    print(calcMSE(image_list[i], offset_image_list[i]))
-    print(f"Detected pixel offset (y, x): {shift}")
-    print(f"Detected a rotation of: {rotation[0]}")
+#     print(calcMSE(image_list[i], offset_image_list[i]))
+#     print(f"Detected pixel offset (y, x): {shift}")
+#     print(f"Detected a rotation of: {rotation[0]}")
 
-fig = plt.figure(figsize=(8, 3))
-ax1 = plt.subplot(1, 3, 1)
-ax2 = plt.subplot(1, 3, 2, sharex=ax1, sharey=ax1)
-ax3 = plt.subplot(1, 3, 3)
+# fig = plt.figure(figsize=(8, 3))
+# ax1 = plt.subplot(1, 3, 1)
+# ax2 = plt.subplot(1, 3, 2, sharex=ax1, sharey=ax1)
+# ax3 = plt.subplot(1, 3, 3)
 
-ax1.imshow(image_list[0], cmap='gray')
-ax1.set_axis_off()
-ax1.set_title('Reference image')
+# ax1.imshow(image_list[0], cmap='gray')
+# ax1.set_axis_off()
+# ax1.set_title('Reference image')
 
-ax2.imshow(offset_image_list[0], cmap='gray')
-ax2.set_axis_off()
-ax2.set_title('Offset image')
+# ax2.imshow(offset_image_list[0], cmap='gray')
+# ax2.set_axis_off()
+# ax2.set_title('Offset image')
 
 # Show the output of a cross-correlation to show what the algorithm is
 # doing behind the scenes
-image_product = np.fft.fft2(image_list[0]) * np.fft.fft2(offset_image_list[0]).conj()
-cc_image = np.fft.fftshift(np.fft.ifft2(image_product))
-ax3.imshow(cc_image.real)
-ax3.set_axis_off()
-ax3.set_title("Cross-correlation")
+# image_product = np.fft.fft2(image_list[0]) * np.fft.fft2(offset_image_list[0]).conj()
+# cc_image = np.fft.fftshift(np.fft.ifft2(image_product))
+# ax3.imshow(cc_image.real)
+# ax3.set_axis_off()
+# ax3.set_title("Cross-correlation")
 
-plt.show()
+# plt.show()
