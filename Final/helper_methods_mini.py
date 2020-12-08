@@ -30,7 +30,7 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
         print()
 
 def calcRMSE(image1, image2):
-    difference = image1 - image2
+    difference = image1-image2
     differenceSquared = difference**2
     meanOfDifferencesSquared = differenceSquared.mean()
     RMSE = np.sqrt(meanOfDifferencesSquared)
@@ -92,16 +92,35 @@ def paramstoaffine(params):
 
 def warp_images(M,N):
     img_w, img_h = base_im.shape
-    img_w = int(img_w + abs(M[0, 2]))
-    img_h = int(img_h + abs(M[1, 2]))
+    img_w = int(img_w + abs(M[1, 2]))
+    img_h = int(img_h + abs(M[0, 2]))
 
-    warped_base = cv2.warpAffine(base_im, N[0:2,:], (img_w, img_h))
-    warped_next = cv2.warpAffine(next_im, M[0:2,:], (img_w, img_h))
+    warped_base = cv2.warpAffine(base_im, N[0:2,:], (img_h, img_w))
+    warped_next = cv2.warpAffine(next_im, M[0:2,:], (img_h, img_w))
 
     # warped_base = base_im.transform((img_w, img_h), Image.AFFINE, N_inv.flatten()[:6], resample=Image.NEAREST)
     # warped_next = next_im.transform((img_w, img_h), Image.AFFINE, M_inv.flatten()[:6], resample=Image.NEAREST)
 
     return warped_base, warped_next
+
+def wavelettf_greyscale(img, wavelet):
+    """
+    Function that first converts the image to greyscale and then calculates the wavelet coeffs
+    :param img: original image, size is (M N 3)
+    :param wavelet: kind of wavelet used, string
+    :return: the different wavelet coefficients
+    """
+
+    # conversion to right data type + to greyscale
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    img = np.float32(img)
+    img /= 255
+
+    # extracting the coeffs
+    coeffs = pywt.dwt2(img, wavelet, axes=(0, 1))
+    cA, (cH, cV, cD) = coeffs
+    return coeffs
 
 def cost_function(params):
     """
@@ -112,17 +131,25 @@ def cost_function(params):
     M, N = paramstoaffine(params)
     warped_base, warped_next = warp_images(M,N)
 
-    #cA1, (cH1, cV1, cD1) = wavelettf_greyscale(warped_base, 'haar')
-    #cA2, (cH2, cV2, cD2) = wavelettf_greyscale(warped_next, 'haar')
-
     return calcRMSE(warped_base, warped_next)
+    """cA1, (cH1, cV1, cD1) = wavelettf_greyscale(warped_base, 'haar')
+    cA2, (cH2, cV2, cD2) = wavelettf_greyscale(warped_next, 'haar')
 
-def fusion(im1, im2):
+    return calcRMSE(cA1, cA2)+calcRMSE(cH1, cH2)+calcRMSE(cV1, cV2)+calcRMSE(cD1, cD2)"""
+
+def fusion(im1, im2, method):
     fused_im = np.zeros_like(im1)
-    for i in range(im1.shape[0]):
-        for j in range(im1.shape[1]):
-            fused_im[i,j] = max(im1[i,j], im2[i,j])
-
+    if (method == 'max'):
+        for i in range(im1.shape[0]):
+            for j in range(im1.shape[1]):
+                fused_im[i,j] = max(im1[i,j], im2[i,j])
+    elif (method == 'adding'):
+        for i in range(fused_im.shape[0]):
+            for j in range(fused_im.shape[1]):
+                if im2[i][j] == 0:
+                    fused_im[i][j] = im1[i][j]
+                else:
+                    fused_im[i][j] = im2[i][j]
     return fused_im
 
 def Transforming(start_img_gray, next_img_gray):
@@ -133,15 +160,19 @@ def Transforming(start_img_gray, next_img_gray):
     next_im = next_img_gray
 
     # trans_x, trans_y, scale_x, scale_y, sh_h, sh_v, angle
-    bounds = [(-90, 90), (-90, 90), (0.83, 1.2), (0.83, 1.2), (-0.01, 0.01), (-0.01, 0.01), (-0.1, 0.1)]
-    result = minimize(cost_function, [0,0,1,1,0,0,0], method='Powell', bounds=bounds, options={'maxiter':100})
+    bounds = [(-200, 200), (-200, 200), (0.95, 1.1), (0.95, 1.1), (-0.02, 0.02), (-0.02, 0.02), (-0.1, 0.1)]
+    result = minimize(cost_function, [0,0,1,1,0,0,0], method='Powell', bounds=bounds, options={'maxiter': 50})
     best_params = result.x
     print(best_params)
     print(result.fun)
     best_M, best_N = paramstoaffine(best_params)
     warped_base, warped_next = warp_images(best_M, best_N)
 
-    fused_im = fusion(warped_base, warped_next)
+    fused_im = fusion(warped_base, warped_next, 'adding')
+
+    # Removing black borders
+    fused_im = fused_im[~np.all(fused_im == 0, axis=1)]
+    fused_im = fused_im[:, ~np.all(fused_im == 0, axis=0)]
 
     # cv2.imshow('test', warped_base)
     # cv2.imshow('test2', warped_next)
