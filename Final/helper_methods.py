@@ -125,7 +125,7 @@ def wavelettf_greyscale(img, wavelet):
     cA, (cH, cV, cD) = coeffs
     return coeffs
 
-def Transforming2(start_img_gray, next_img_gray):
+def Transforming(start_img_gray, next_img_gray):
     coeffs = wavelettf_greyscale(start_img_gray, 'haar')    
     cA, (cH, cV, cD) = coeffs
 
@@ -224,7 +224,7 @@ def Transforming2(start_img_gray, next_img_gray):
 
     return fusedImage
 
-def Transforming(start_img_gray, next_img_gray):
+def Transforming2(start_img_gray, next_img_gray):
     # Find features with SIFT (Scale-Invariant Feature Transform)
     sift = cv2.SIFT_create()
     kp1, des1 = sift.detectAndCompute(start_img_gray, None)
