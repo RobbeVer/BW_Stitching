@@ -5,20 +5,19 @@ from queue import Queue
 import numpy as np
 import helper_methods as hp
 
-# 1. Lees foto A en foto B in
-# 2. Functie X op beide foto's --> Krijg transformatie matrix
-# 3. Haal translatievector uit transformatie matrix
-# 4. Beweeg foto B met bewegingsvector
-# 5. Stitch foto A en bewogen foto B = stitched_image
-# 6. foto A = orginele foto B
-# 7. Do tot alle foto's ingeladen zijn:
-#       Laad volgende foto B in
-#       Functie X op foto A en foto B --> Krijg transformatie matrix
-#       Haal translatievector uit transformatie matrix
-#       bewegingsvector_totaal += bewegingsvector
-#       Beweeg foto B met bewegingsvector_totaal
-#       Stitch stitched_foto met bewogen foto B.
-#       foto A = orginele foto B
+"""
+Algorithm outline
+    1. Read all images into a queue and downsample them.
+    2. Take first two images out of the queue (image_A, image_B).
+    3. Stitch the first two images together using hp.Transforming(image_A, image_B). 
+        -> More details in helper_methods.py.
+    4. stitched_image = stitched image returned from hp.Transforming()
+    5. Repeat the queue until it is empty:
+        5.1. Load next picture from queue and load into image_B
+        5.2. Call hp.Transforming(stitched_image, image_B)
+        5.3. stitched_image = stitched image returned from hp.Transforming()
+    6. Save stitched_image into stitched_v1.jpg
+"""
 
 #%% Inital loading of images
 images = Queue(maxsize = 0)
@@ -53,19 +52,8 @@ print('Images loaded')
 image_A = images.get()
 image_B = images.get()
 
-#%% Get transform matrix from A to B
-
-
-#%% Get translatation vector from transform matrix
-
-
-#%% Move image B "translation vector"-amount
-# image_B_moved = 
-
-#%% Stitch moved version of B with A => stitched_image
-
-
-#%% Image A = original image B
+#%% Start the stitching process
+# Stich the images that we get from the queue
 print('Start stitching progress')
 hp.printProgressBar(0, length_progress, prefix='Progress', suffix='Complete', length=length_progress)
 image_A = hp.Transforming(cv2.cvtColor(image_A, cv2.COLOR_BGR2GRAY), cv2.cvtColor(image_B, cv2.COLOR_BGR2GRAY))

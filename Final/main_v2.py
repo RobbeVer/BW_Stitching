@@ -6,6 +6,21 @@ from queue import Queue
 import helper_methods as hp
 import copy
 
+"""
+Algorithm outline
+    1. Read all images into a queue and downsample them.
+    2. Take first two images out of the queue (image_A, image_B).
+    3. Stitch the first two images together using hp.Transforming(image_A, image_B). 
+        -> More details in helper_methods.py.
+    4. stitched_image = stitched image returned from hp.Transforming()
+    5. Repeat the queue until it is empty:
+        5.1. Load next two pictures from queue
+        5.2. Call hp.Transforming(image_A, image_B)
+        5.3. stitched_image = stitched image returned from hp.Transforming()
+    6. Repeat the whole process until one image remains
+    6. Save stitched_image into stitched_v2.jpg
+"""
+
 #%% Inital loading of images
 images = Queue(maxsize = 0)
 stitched_images = []
