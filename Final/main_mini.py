@@ -2,15 +2,29 @@
 import cv2
 import os
 from queue import Queue
-
 import helper_methods as hp
 
+"""
+Algorithm outline
+    1. Read all images into a queue and downsample them.
+    2. Take first two images out of the queue (image_A, image_B).
+    3. Stitch the first two images together using hp.Transforming(image_A, image_B). 
+        -> More details in helper_methods_minimization.py.
+    4. stitched_image = stitched image returned from hp.Transforming()
+    5. Repeat the queue is empty:
+        5.1. Load next picture from queue into image_B
+        5.2. Call hp.Transforming(stitched_image, image_B)
+        5.3. stitched_image = stitched image returned from hp.Transforming()
+    6. Save stitched_image into stitched_minimization.jpg
+"""
+
+# %% Loading images into a Queue and downsample them
+print('Loading images')
 images = Queue(maxsize = 0)
 length_progress = 0
 i = 0
 
-print('Loading images')
-path_images = 'images'
+path_images = 'images' #os.path.expanduser('~') + '\Pictures\Stitching_images'
 if os.path.isdir(path_images):
     entries = os.listdir(path_images)
     length_progress = len(entries)
@@ -22,34 +36,28 @@ if os.path.isdir(path_images):
         images.put(image)
         i += 1
         hp.printProgressBar(i, length_progress, prefix='Progress', suffix='Complete', length=length_progress)
-
 print('Images loaded')
+
+
+# %% Start stitching process with stitching of initial two images => stitched image into
+print('Start stitching process')
 image_A = images.get()
 image_B = images.get()
-
-print('Start stitching progress')
-# for x in range(1):
-#     image_A = cv2.pyrDown(image_A)
-#     image_B = cv2.pyrDown(image_B)
 hp.printProgressBar(0, length_progress, prefix='Progress', suffix='Complete', length=length_progress)
-image_A = hp.Transforming(cv2.cvtColor(image_A, cv2.COLOR_BGR2GRAY), cv2.cvtColor(image_B, cv2.COLOR_BGR2GRAY))
+stitched_image = hp.Transforming(cv2.cvtColor(image_A, cv2.COLOR_BGR2GRAY), cv2.cvtColor(image_B, cv2.COLOR_BGR2GRAY))
 i = 2
 hp.printProgressBar(i, length_progress, prefix='Progress', suffix='Complete', length=length_progress)
 
-cv2.imwrite('stitched_temp.jpg', image_A)
 
-# %% Repeat steps until queue is empty
+# %% Stitch next image to the existing image untill the queue is empty
 while (not (images.empty())):
     image_B = images.get()
-    # for x in range(1):
-    #     image_B = cv2.pyrDown(image_B)
 
-    image_A = hp.Transforming(image_A, cv2.cvtColor(image_B, cv2.COLOR_BGR2GRAY))
+    stitched_image = hp.Transforming(stitched_image, cv2.cvtColor(image_B, cv2.COLOR_BGR2GRAY))
     i += 1
     hp.printProgressBar(i, length_progress, prefix='Progress', suffix='Complete', length=length_progress)
 
-    cv2.imwrite('stitched_temp.jpg', image_A)
 
-# Save stitched image
-cv2.imwrite('stitched_v1.jpg', image_A)
+# %% Save stitched image
+cv2.imwrite('stitched_minimization.jpg', stitched_image)
 print('Finished')
