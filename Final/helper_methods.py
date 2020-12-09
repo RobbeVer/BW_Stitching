@@ -107,19 +107,20 @@ def imageFusion(coeffs1, coeffs2, method):
 
 def wavelettf_greyscale(img, wavelet):
     """
-    Function that first converts the image to greyscale and then calculates the wavelet coeffs
-    :param img: original image, size is (M N 3)
-    :param wavelet: kind of wavelet used, string
-    :return: the different wavelet coefficients
+    Calculates the wavelet coefficients.
+    :param img:         source image for the coefficients (ndarray)
+    :param wavelet:     kind of wavelet used (String)
+
+    :return: coeffs     the different wavelet coefficients in the form cA, (cH, cV, cD)
     """
 
-    # conversion to right data type + to greyscale
+    # %% Converting the image to right datatype
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
     img = np.float32(img)
     img /= 255
 
-    # extracting the coeffs
+    # %% Extracting and returning the coefficients
     coeffs = pywt.dwt2(img, wavelet, axes=(0, 1))
     cA, (cH, cV, cD) = coeffs
     return coeffs
